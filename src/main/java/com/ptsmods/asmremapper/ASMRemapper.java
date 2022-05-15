@@ -24,6 +24,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
+/**
+ * Main class that does the actual ASMifying and remapping.
+ */
 public class ASMRemapper {
 	private static final Gson gson = new GsonBuilder()
 			// Gson can't handle making new instances of Records.
@@ -37,6 +40,11 @@ public class ASMRemapper {
 							getString(src, "officialDescriptor"), getString(src, "official"), getString(src, "intermediary"), getString(src, "named")))
 			.create();
 
+	/**
+	 * Parses the commandline arguments and invokes the remapping
+	 * @param args The commandline arguments
+	 * @throws IOException If anything goes wrong when downloading the mappings.
+	 */
 	public static void main(String[] args) throws IOException {
 		OptionParser parser = new OptionParser();
 		parser.accepts("help");
