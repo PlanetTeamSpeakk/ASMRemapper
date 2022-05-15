@@ -12,7 +12,7 @@ Then, if you wish to automate it, make a task for it in your build.gradle file. 
 ```gradle
 task genCompatDumps(dependsOn: "classes") {
     doLast { // Run after all dependencies have been resolved.
-        def output = sourceSets.main.allJava.srcDirs.iterator().next().toPath().resolve("com/ptsmods/morecommands/asm/compat")
+        def output = sourceSets.main.allJava.srcDirs.iterator().next().toPath().resolve("com/example/dumps")
         def cache = Paths.get(System.getProperty("user.dir"), ".gradle").toAbsolutePath().toString()
 
         project(":common:Compat").subprojects {
@@ -24,19 +24,19 @@ task genCompatDumps(dependsOn: "classes") {
                 return
             }
 
-            def input = it.buildDir.toPath().resolve("classes/java/main/com/ptsmods/morecommands/compat")
+            def input = it.buildDir.toPath().resolve("classes/java/main/com/example/classestodump")
             System.out.printf("ASMifying project %s.\n", it.name)
             javaexec {
                 classpath = projectCP // All dependencies ASMRemapper has are already present on this classpath, including the necessary Minecraft jar.
-                main = "com.ptsmods.asm.ASMRemapper"
+                main = "com.ptsmods.asmremapper.ASMRemapper"
 
                 args = [
                         "--cache=\"" + cache + '"',
-                        "--package=com.ptsmods.morecommands.asm.compat",
+                        "--package=com.example.classestodump",
                         "--input=\"" + input.toAbsolutePath() + '"',
                         "--output=\"" + output.toAbsolutePath() + '"',
                         "--mappings=\"" + mappings + '"',
-                        "--maputil=com.ptsmods.morecommands.asm.ASMDump"
+                        "--maputil=com.example.ASMDump"
                 ]
             }
         }
