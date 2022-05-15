@@ -11,46 +11,46 @@ Then, if you wish to automate it, make a task for it in your build.gradle file. 
 (this is in a Fabric environment)
 ```gradle
 task genCompatDumps(dependsOn: "classes") {
-	doLast { // Run after all dependencies have been resolved.
-		def output = sourceSets.main.allJava.srcDirs.iterator().next().toPath().resolve("com/example/dumps")
-		def cache = Paths.get(System.getProperty("user.dir"), ".gradle").toAbsolutePath().toString()
+    doLast { // Run after all dependencies have been resolved.
+        def output = sourceSets.main.allJava.srcDirs.iterator().next().toPath().resolve("com/ptsmods/morecommands/asm/compat")
+        def cache = Paths.get(System.getProperty("user.dir"), ".gradle").toAbsolutePath().toString()
 
-		project(":common:Compat").subprojects {
-			def projectCP = sourceSets.main.runtimeClasspath
-			def mappings = null
-			configurations.mappings.forEach { mappings = it } // Should only be one entry
-			if (mappings == null) {
-				System.err.printf("Project %s has no mappings dependency, skipping.\n", it.name)
-				return
-			}
+        project(":common:Compat").subprojects {
+            def projectCP = sourceSets.main.runtimeClasspath
+            def mappings = null
+            configurations.mappings.forEach { mappings = it } // Should only be one entry
+            if (mappings == null) {
+                System.err.printf("Project %s has no mappings dependency, skipping.\n", it.name)
+                return
+            }
 
-			def input = it.buildDir.toPath().resolve("classes/java/main/com/example/classestodump")
-			System.out.printf("ASMifying project %s.\n", it.name)
-			javaexec {
-				classpath = projectCP // All dependencies ASMRemapper has are already present on this classpath, including the necessary Minecraft jar.
-				main = "com.ptsmods.asmremapper.ASMRemapper"
+            def input = it.buildDir.toPath().resolve("classes/java/main/com/ptsmods/morecommands/compat")
+            System.out.printf("ASMifying project %s.\n", it.name)
+            javaexec {
+                classpath = projectCP // All dependencies ASMRemapper has are already present on this classpath, including the necessary Minecraft jar.
+                main = "com.ptsmods.asm.ASMRemapper"
 
-				args = [
-						"--cache=\"" + cache + '"',
-						"--package=com.example.classestodump",
-						"--input=\"" + input.toAbsolutePath() + '"',
-						"--output=\"" + output.toAbsolutePath() + '"',
-						"--mappings=\"" + mappings + '"',
-						"--maputil=com.example.ASMDump"
-				]
-			}
-		}
-	}
+                args = [
+                        "--cache=\"" + cache + '"',
+                        "--package=com.ptsmods.morecommands.asm.compat",
+                        "--input=\"" + input.toAbsolutePath() + '"',
+                        "--output=\"" + output.toAbsolutePath() + '"',
+                        "--mappings=\"" + mappings + '"',
+                        "--maputil=com.ptsmods.morecommands.asm.ASMDump"
+                ]
+            }
+        }
+    }
 }
 ```
 
 The ASMDump class should have a `#map(String, String, String)` method where the first parameter is the intermediary name, the second is the Yarn name and the third is the Moj name. An example using Architectury would be:
 ```java
 public class ASMDump {
-	private static final boolean notDevEnv = !Platform.isDevelopmentEnvironment();
+    private static final boolean notDevEnv = !Platform.isDevelopmentEnvironment();
 
-	public static String map(String intermediary, String yarn, String moj) {
-		return Platform.isForge() ? moj : notDevEnv ? intermediary : yarn;
-	}
+    public static String map(String intermediary, String yarn, String moj) {
+        return Platform.isForge() ? moj : notDevEnv ? intermediary : yarn;
+    }
 }
 ```
