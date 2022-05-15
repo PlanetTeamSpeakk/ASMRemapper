@@ -1,6 +1,8 @@
 plugins {
     id 'java'
 	id 'application'
+	id 'maven-publish'
+	id 'signing'
 	id "com.github.johnrengelman.shadow" version "7.1.2"
 }
 
@@ -28,9 +30,76 @@ dependencies {
 }
 
 application {
-	mainClass = "com.ptsmods.asm.ASMRemapper"
+	mainClass = "com.ptsmods.asmremapper.ASMRemapper"
 }
 
 test {
     useJUnitPlatform()
+}
+
+java {
+	withSourcesJar()
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			artifactId = "asmremapper"
+			from components.java
+
+			pom {
+				name = 'ASMRemapper'
+				description = 'Small tool to turn classes into ASM dumps and remap them between yarn, intermediary and moj.'
+				url = 'https://github.com/PlanetTeamSpeakk/ASMRemapper'
+
+				scm {
+					connection = 'scm:git:git://github.com/PlanetTeamSpeakk/ASMRemapper.git'
+					developerConnection = 'scm:git:git://github.com/PlanetTeamSpeakk/ASMRemapper.git'
+					url = 'https://github.com/PlanetTeamSpeakk/ASMRemapper'
+				}
+
+				licenses {
+					license {
+						name = 'MIT License'
+						url = 'https://raw.githubusercontent.com/PlanetTeamSpeakk/ASMRemapper/main/LICENSE'
+					}
+				}
+
+				developers {
+					developer {
+						id = 'PlanetTeamSpeak'
+						name = 'PlanetTeamSpeak'
+						email = 'PlanetTeamSpeakk@users.noreply.github.com'
+					}
+				}
+			}
+		}
+	}
+
+	repositories {
+		maven {
+			// https://oss.sonatype.org
+			def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+			def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+			name = "MavenCentral"
+			url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+			credentials(PasswordCredentials) {
+				username ossrhUsername
+				password ossrhPassword
+			}
+		}
+
+		maven {
+			name = "GitHubPackages"
+			url = ghUrlRoot + "/ASMRemapper"
+			credentials {
+				username = ghUsername
+				password = ghToken
+			}
+		}
+	}
+}
+
+signing {
+	sign publishing.publications.mavenJava
 }
