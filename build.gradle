@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+	id 'application'
+	id "com.github.johnrengelman.shadow" version "7.1.2"
+}
+
+group 'com.ptsmods'
+version '1.0'
+
+repositories {
+    mavenCentral()
+	maven { url = "https://libraries.minecraft.net"}
+}
+
+dependencies {
+	implementation 'org.ow2.asm:asm-util:9.3'
+	implementation 'com.google.code.gson:gson:2.9.0'
+	implementation 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3'
+
+	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+//	testRuntimeOnly files("M:\\IdeaProjects\\MoreCommands\\.gradle\\loom-cache\\1.18\\net.fabricmc.yarn.1_18.1.18+build.1-v2\\minecraft-project-@common@Compat@Compat18-merged-named.jar")
+	testRuntimeOnly files("M:\\IdeaProjects\\MoreCommands\\.gradle\\loom-cache\\1.16.5\\net.fabricmc.yarn.1_16_5.1.16.5+build.10-v2\\minecraft-project-@common@Compat@Compat16-merged-named.jar")
+	testRuntimeOnly 'it.unimi.dsi:fastutil:8.2.1'
+	testRuntimeOnly 'com.mojang:brigadier:1.0.17'
+	testRuntimeOnly 'com.mojang:datafixerupper:4.0.26'
+	testRuntimeOnly 'com.mojang:authlib:2.1.28'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+}
+
+application {
+	mainClass = "com.ptsmods.asm.ASMRemapper"
+}
+
+test {
+    useJUnitPlatform()
+}
