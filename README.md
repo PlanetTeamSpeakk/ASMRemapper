@@ -4,9 +4,9 @@ Small tool I made to turn classes into ASM dumps and remap them between yarn, in
 ## Usage
 To use this tool, either download the jar and use it standalone, or consider automating whatever you need it for by adding it to the classpath with the following line:
 ```gradle
-implementation "com.ptsmods:asmremapper:1.0"
+implementation "com.ptsmods:asmremapper:1.0.1"
 ```
-Do note that when using the tool standalone, you must use the shadowed jar (ending in `-all`) and add a Minecraft jar to the classpath when running the jar using the `-cp` VM argument with the `java` command. E.g. `java -cp C:/path/to/minecraft/jar -jar ASMRemapper-1.0-all.jar`
+Do note that when using the tool standalone, you must use the shadowed jar (ending in `-all`) and add a Minecraft jar to the classpath when running the jar using the `-cp` VM argument with the `java` command. E.g. `java -cp C:/path/to/minecraft/jar -jar ASMRemapper-1.0.1-all.jar`
 
 
 Then, if you wish to automate it, make a task for it in your build.gradle file. The task I've made to turn my Compat classes into dumps is the following:  
