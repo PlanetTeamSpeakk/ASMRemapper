@@ -227,7 +227,7 @@ public class ASMRemapper {
 
 		data = data
 				// Replace package and add import for ASMDump
-				.replaceFirst("package (.*?);", String.format("package %s;\nimport static " + mapUtil + "." + mapMethod, pckg))
+				.replaceFirst("package (.*?);", String.format("package %s;\nimport static %s.%s;", pckg, mapUtil, mapMethod))
 				// Remove empty string concatenation resulting from earlier replacements.
 				.replace(" + \"\"", "").replace("\"\" + ", "");
 
