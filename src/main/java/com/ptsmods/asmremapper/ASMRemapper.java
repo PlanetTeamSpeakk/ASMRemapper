@@ -163,71 +163,78 @@ public class ASMRemapper {
 		String data = dataStream.toString();
 
 		BiFunction<String, Boolean, Function<MatchResult, String>> methodMatcher = (prefix, appendSC) -> res -> {
+			String clazz = group(res, "class");
+			String method = group(res, "method");
+			String signature = group(res, "signature");
 			MethodMapping mapping;
 
-			if ("<init>".equals(res.group(3)) || "<clinit>".equals(res.group(3))) mapping = null; // (Static) constructors do not get remapped, obviously.
-			else if (yarn.hasMethod(yarn.getClassMapping(res.group(2)), res.group(3), res.group(4)))
-				mapping = yarn.getMethodMapping(res.group(2), res.group(3), res.group(4));
+			if ("<init>".equals(group(res, "method")) || "<clinit>".equals(method)) mapping = null; // (Static) constructors do not get remapped, obviously.
+			else if (yarn.hasMethod(clazz, method, signature))
+				mapping = yarn.getMethodMapping(clazz, method, signature);
 			else {
 				Class<?> owner = null;
 				try {
-					owner = Class.forName(res.group(2).replace('/', '.'), false, ASMRemapper.class.getClassLoader());
+					owner = Class.forName(clazz.replace('/', '.'), false, ASMRemapper.class.getClassLoader());
 				} catch (NoClassDefFoundError | ClassNotFoundException ignored) {} // Likely outside source, unlikely that this will require remapping.
 
 				if (owner != null) {
-					Descriptor descriptor = parseDescriptor(res.group(4));
-					if (owner.isEnum() && ("values".equals(res.group(3)) && descriptor.returnType() == owner.arrayType() && descriptor.parameterTypes().isEmpty() ||
-							"valueOf".equals(res.group(3)) && descriptor.returnType() == owner && descriptor.parameterTypes().size() == 1 && descriptor.parameterTypes().get(0) == String.class))
+					Descriptor descriptor = parseDescriptor(signature);
+					if (owner.isEnum() && ("values".equals(method) && descriptor.returnType() == owner.arrayType() && descriptor.parameterTypes().isEmpty() ||
+							"valueOf".equals(method) && descriptor.returnType() == owner && descriptor.parameterTypes().size() == 1 && descriptor.parameterTypes().get(0) == String.class))
 						mapping = null; // Default methods 'values' and 'valueOf' of Enums do not get remapped, obviously.
-					else mapping = yarn.getMethodMapping(getDeclaringClass(owner, res.group(3), parseDescriptor(res.group(4)).parameterTypes()).getName().replace('.', '/'),
-							res.group(3), res.group(4));
+					else mapping = yarn.getMethodMapping(getDeclaringClass(owner, method, descriptor.parameterTypes()).getName().replace('.', '/'),
+							method, signature);
 				} else mapping = null;
 			}
 
-			return Matcher.quoteReplacement(String.format(prefix + "(%s, \"%s\", %s, \"%s\", %s)" + (appendSC ? ";" : ""), res.group(1), res.group(2),
-					mapping == null ? '"' + res.group(3) + '"' : formatMapCall(mapMethod, mapping.intermediary(), res.group(3), moj.getMethodMapping(mapping.owner().official(), mapping.official(), mapping.officialSignature()).named()),
-							res.group(4), res.group(5)));
+			return Matcher.quoteReplacement(String.format(prefix + "(%s, \"%s\", %s, \"%s\", %s)" + (appendSC ? ";" : ""), group(res, "insn"), clazz,
+					mapping == null ? '"' + method + '"' : formatMapCall(mapMethod, mapping.intermediary(), method, moj.getMethodMapping(mapping.owner().official(), mapping.official(), mapping.officialSignature()).named()),
+							signature, group(res, "itf")));
 		};
 
 		// Map method instructions
-		data = Pattern.compile("methodVisitor\\.visitMethodInsn\\(([A-Z]*), \"(net/minecraft/[A-Za-z\\d/$]*)\", \"(.*)\", \"(.*)\", (.*)\\);")
+		data = Pattern.compile("methodVisitor\\.visitMethodInsn\\((?<insn>[A-Z]*), \"(?<class>net/minecraft/[A-Za-z\\d/$]*)\", \"(?<method>.*)\", \"(?<signature>.*)\", (?<itf>.*)\\);")
 				.matcher(data)
 				.replaceAll(methodMatcher.apply("methodVisitor.visitMethodInsn", true));
 
 		// Map handles
-		data = Pattern.compile("new Handle\\(([\\w.]*), \"(net/minecraft/[A-Za-z\\d/$]*)\", \"(.*?)\", \"(.*?)\", (.*?)\\)")
+		data = Pattern.compile("new Handle\\((?<insn>[\\w.]*), \"(?<class>net/minecraft/[A-Za-z\\d/$]*)\", \"(?<method>.*?)\", \"(?<signature>.*?)\", (?<itf>.*?)\\)")
 				.matcher(data)
 				.replaceAll(methodMatcher.apply("new Handle", false));
 
 		// Map field instructions
-		data = Pattern.compile("methodVisitor\\.visitFieldInsn\\(([A-Z]*), \"(net/minecraft/[A-Za-z\\d/$]*)\", \"(.*)\", \"(.*)\"\\);")
+		data = Pattern.compile("methodVisitor\\.visitFieldInsn\\((?<insn>[A-Z]*), \"(?<class>net/minecraft/[A-Za-z\\d/$]*)\", \"(?<field>.*)\", \"(?<descriptor>.*)\"\\);")
 				.matcher(data)
-				.replaceAll(res -> Matcher.quoteReplacement(String.format("methodVisitor.visitFieldInsn(%s, \"%s\", %s, \"%s\");", res.group(1), res.group(2),
-						formatMapCall(mapMethod, yarn.getFieldMapping(res.group(2), res.group(3)).intermediary(), res.group(3), moj.getFieldMapping(yarn.getClassMapping(res.group(2)).official(),
-										yarn.getFieldMapping(res.group(2), res.group(3)).official()).named()), res.group(4))));
+				.replaceAll(res -> Matcher.quoteReplacement(String.format("methodVisitor.visitFieldInsn(%s, \"%s\", %s, \"%s\");", group(res, "insn"), group(res, "class"),
+						formatMapCall(mapMethod, yarn.getFieldMapping(group(res, "class"), group(res, "field")).intermediary(), group(res, "field"), moj.getFieldMapping(yarn.getClassMapping(group(res, "class")).official(),
+										yarn.getFieldMapping(group(res, "class"), group(res, "field")).official()).named()), group(res, "descriptor"))));
 
 		// Map inner classes
-		data = Pattern.compile("classWriter\\.visitInnerClass\\(\"(net/minecraft/[A-Za-z\\d/]*/[A-Za-z\\d$]*)\", \"(net/minecraft/[A-Za-z\\d/]*/[A-Za-z\\d$]*)\", \"(.*?)\", (.*?)\\);")
+		data = Pattern.compile("classWriter\\.visitInnerClass\\(\"(?<class>net/minecraft/[A-Za-z\\d/]*/[A-Za-z\\d$]*)\", \"(?<innerclass>net/minecraft/[A-Za-z\\d/]*/[A-Za-z\\d$]*)\", \"(?<innerclassname>.*?)\", (?<access>.*?)\\);")
 				.matcher(data)
 				.replaceAll(res -> {
-					ClassMapping classYarn = yarn.getClassMapping(res.group(1));
+					ClassMapping classYarn = yarn.getClassMapping(group(res, "class"));
 					String intermediary = classYarn.intermediary();
 					String mojName = moj.getClassMapping(classYarn.official()).named();
 
-					return Matcher.quoteReplacement(String.format("classWriter.visitInnerClass(\"%s\", \"%s\", %s, %s);", res.group(1), res.group(2),
+					return Matcher.quoteReplacement(String.format("classWriter.visitInnerClass(\"%s\", \"%s\", %s, %s);", group(res, "class"), group(res, "innerclass"),
 							formatMapCall(mapMethod, intermediary.substring(intermediary.lastIndexOf('$') + 1),
-									res.group(3), mojName.substring(mojName.indexOf('$') + 1)), res.group(4)));
+									group(res, "innerclassname"), mojName.substring(mojName.indexOf('$') + 1)), group(res, "access")));
 				});
 
 		// Map Minecraft classes
-		data = Pattern.compile("(L?)(net/minecraft/[A-Za-z\\d/]*/[A-Za-z\\d$]*)(;?)")
+		data = Pattern.compile("(?<prefix>L?)(?<class>net/minecraft/[A-Za-z\\d/]*/[A-Za-z\\d$]*)(?<suffix>;?)")
 				.matcher(data)
-				.replaceAll(res -> "\" + " + Matcher.quoteReplacement(formatMapCall(mapMethod, res.group(1) + yarn.getClassMapping(res.group(2)).intermediary() + res.group(3), res.group(1) + res.group(2) + res.group(3),
-						res.group(1) + (yarn.getClassMapping(res.group(2)).isObfuscated() ? moj.getClassMapping(yarn.getClassMapping(res.group(2)).official()).named() : res.group(2)) + res.group(3))) + " + \"");
+				.replaceAll(res -> "\" + " + Matcher.quoteReplacement(formatMapCall(mapMethod, group(res, "prefix") + yarn.getClassMapping(group(res, "class")).intermediary() + group(res, "suffix"),
+						group(res, "prefix") + group(res, "class") + group(res, "suffix"), group(res, "prefix") + (yarn.getClassMapping(group(res, "class")).isObfuscated() ?
+								moj.getClassMapping(yarn.getClassMapping(group(res, "class")).official()).named() : group(res, "class")) + group(res, "suffix"))) + " + \"");
 
 		data = data
 				// Replace package and add import for ASMDump
 				.replaceFirst("package (.*?);", String.format("package %s;\nimport static %s.%s;", pckg, mapUtil, mapMethod))
+				// Replace strings containing a single character used in concatenation with a character for memory efficiency
+				.replaceAll("\\+ \"(.)\"", "+ '$1'")
+				.replaceAll("\"(.)\" \\+", "'$1' +")
 				// Remove empty string concatenation resulting from earlier replacements.
 				.replace(" + \"\"", "").replace("\"\" + ", "");
 
@@ -274,7 +281,7 @@ public class ASMRemapper {
 		}
 
 		ClassMapping lastClass = null;
-		Pattern officialClassPatternSig = Pattern.compile("(?<=[();ZBCDFIJS])L([a-z$\\d]*?);");
+		Pattern officialClassPatternSig = Pattern.compile("(?<=[();ZBCDFIJS])L(?<officialclassname>[a-z$\\d]*?);");
 		Pattern officialClassPatternDesc = Pattern.compile("^L([a-z$\\d]*?);");
 
 		for (Pair<Integer, String[]> rawMapping : rawMappings) {
@@ -290,7 +297,7 @@ public class ASMRemapper {
 			Objects.requireNonNull(lastClass);
 			if (type == MappingType.METHOD) {
 				String namedSig = officialClassPatternSig.matcher(mapping[1])
-						.replaceAll(res -> Matcher.quoteReplacement('L' + oClasses.get(res.group(1)).named() + ';'));
+						.replaceAll(res -> Matcher.quoteReplacement('L' + oClasses.get(group(res, "officialclassname")).named() + ';'));
 
 				methods.put(Pair.of(lastClass, mapping[4] + namedSig),
 						new MethodMapping(lastClass, namedSig, mapping[1], mapping[2], mapping[3], mapping[4]));
@@ -298,7 +305,7 @@ public class ASMRemapper {
 			else if (type == MappingType.FIELD) {
 				fields.put(Pair.of(lastClass, mapping[4]),
 						new FieldMapping(lastClass, officialClassPatternDesc.matcher(mapping[1])
-								.replaceAll(res -> Matcher.quoteReplacement('L' + oClasses.get(res.group(1)).named() + ';')),
+								.replaceAll(res -> Matcher.quoteReplacement('L' + oClasses.get(group(res, "officialclassname")).named() + ';')),
 								mapping[1], mapping[2], mapping[3], mapping[4]));
 			}
 		}
@@ -547,5 +554,9 @@ public class ASMRemapper {
 			return getDeclaringClass0(false, sup, methodName, classes);
 
 		return null;
+	}
+
+	private static String group(MatchResult res, String name) {
+		return ((Matcher) res).group(name); // For some reason, this method is not part of MatchResult.
 	}
 }

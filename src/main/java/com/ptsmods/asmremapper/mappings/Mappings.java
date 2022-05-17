@@ -89,6 +89,16 @@ public class Mappings {
 	}
 
 	/**
+	 * @param owner The owner of the method
+	 * @param name The name of the method
+	 * @param signature The signature of the method
+	 * @return Whether the given owner has a method of the given name and signature.
+	 */
+	public boolean hasMethod(String owner, String name, String signature) {
+		return hasMethod(getClassMapping(owner), name, signature);
+	}
+
+	/**
 	 * Enum indicating what type a Mappings object is.
 	 */
 	public enum Type {
