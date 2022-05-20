@@ -90,14 +90,14 @@ publishing {
 			}
 		}
 
-		maven {
-			name = "GitHubPackages"
-			url = ghUrlRoot + "/ASMRemapper"
-			credentials {
-				username = ghUsername
-				password = ghToken
-			}
-		}
+//		maven {
+//			name = "GitHubPackages"
+//			url = ghUrlRoot + "/ASMRemapper"
+//			credentials {
+//				username = ghUsername
+//				password = ghToken
+//			}
+//		}
 	}
 }
 
