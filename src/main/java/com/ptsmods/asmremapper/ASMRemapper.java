@@ -22,6 +22,7 @@ import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import java.util.zip.ZipFile;
 
 /**
@@ -327,16 +328,32 @@ public class ASMRemapper {
 	private static Mappings loadMojMappings(String minecraftVer, Path cacheDir) throws IOException {
 		Pattern officialClassPatternDesc = Pattern.compile("^L([a-z$\\d]*?);");
 
-		if (cacheDir != null && Files.exists(cacheDir) && Files.exists(cacheDir.resolve("moj.json"))) {
+		// If we store the cache file in the passed cache dir, the file will not be used when the Yarn mappings get updated
+		// even though the project effectively uses the same Moj mappings.
+		Path cacheFile = cacheDir == null ? null : cacheDir.getParent().resolve(minecraftVer + "-moj.json");
+		if (cacheDir != null && Files.exists(cacheFile)) {
 			try {
-				return gson.fromJson(new BufferedReader(new InputStreamReader(new FileInputStream(cacheDir.resolve("moj.json").toAbsolutePath().toString()))), Mappings.class);
+				return gson.fromJson(new BufferedReader(new InputStreamReader(new FileInputStream(cacheFile.toFile()))), Mappings.class);
 			} catch (Exception e) {
 				System.err.println("Could not load cache for moj mappings.");
 				e.printStackTrace();
 			}
 		}
 
-		JsonArray versions = gson.fromJson(readPage("https://launchermeta.mojang.com/mc/game/version_manifest.json"), JsonObject.class).get("versions").getAsJsonArray();
+		Path vmCache = cacheDir == null ? null : cacheDir.getParent().resolve("moj_vm.json");
+		JsonArray versions = null;
+		if (vmCache != null && Files.exists(vmCache)) versions = gson.fromJson(new BufferedReader(new FileReader(vmCache.toFile())), JsonArray.class);
+		if (versions == null || StreamSupport.stream(versions.spliterator(), false).anyMatch(e -> e.getAsJsonObject().get("id").getAsString().equals(minecraftVer))) {
+			// If cached manifest doesn't contain an entry for the requested version, assume it's out of date and update it.
+			versions = gson.fromJson(readPage("https://launchermeta.mojang.com/mc/game/version_manifest.json"), JsonObject.class).get("versions").getAsJsonArray();
+			if (vmCache != null) {
+				PrintWriter wr = new PrintWriter(vmCache.toFile());
+				gson.toJson(versions, wr);
+				wr.flush();
+				wr.close();
+			}
+		}
+
 		String mojRaw = null;
 		for (JsonElement version : versions) {
 			JsonObject vo = version.getAsJsonObject();
@@ -413,14 +430,11 @@ public class ASMRemapper {
 
 		Mappings moj = new Mappings(Mappings.Type.MOJ, classes, methods, fields);
 
-		if (cacheDir != null) {
-			Path cacheFile = cacheDir.resolve("moj.json");
-
+		if (cacheDir != null)
 			try (PrintWriter writer = new PrintWriter(cacheFile.toAbsolutePath().toString())) {
 				gson.toJson(moj, writer);
 				writer.flush();
 			}
-		}
 
 		return moj;
 	}
